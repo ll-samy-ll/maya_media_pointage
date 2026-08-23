@@ -1,0 +1,23 @@
+{% extends "employee/layout.html" %}
+{% set active = "retards" %}
+{% block title %}Retards{% endblock %}
+{% block employee_content %}
+<h1 class="h4 fw-semibold mb-4">Mes retards</h1>
+<div class="card p-3">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead><tr><th>Date</th><th>Heure d'arrivée</th></tr></thead>
+            <tbody>
+                {% for p in pointages_retard %}
+                <tr>
+                    <td>{{ p.date_pointage.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ p.heure_arrivee.strftime('%Hh%M') }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" class="text-center text-secondary py-4">Aucun retard enregistré. 🎉</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

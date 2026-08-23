@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Espace Employé{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center min-vh-100 p-3">
+    <div class="card shadow-lg auth-card w-100" style="max-width: 440px;">
+        <div class="card-body p-4 p-md-5">
+
+            <ul class="nav nav-pills nav-fill mb-4" id="authTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab != 'signup' %}active{% endif %}"
+                            id="login-tab" data-bs-toggle="pill" data-bs-target="#login-pane"
+                            type="button" role="tab">
+                        Se connecter
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'signup' %}active{% endif %}"
+                            id="signup-tab" data-bs-toggle="pill" data-bs-target="#signup-pane"
+                            type="button" role="tab">
+                        S'inscrire
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+
+                <!-- ONGLET CONNEXION -->
+                <div class="tab-pane fade {% if active_tab != 'signup' %}show active{% endif %}" id="login-pane" role="tabpanel">
+                    <form method="POST" action="{{ url_for('auth.login_employee') }}" autocomplete="on">
+                        <div class="mb-3">
+                            <label for="login-nom" class="form-label">Nom</label>
+                            <input type="text" class="form-control" id="login-nom" name="nom"
+                                   autocomplete="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="login-email" class="form-label">Adresse e-mail</label>
+                            <input type="email" class="form-control" id="login-email" name="email"
+                                   autocomplete="username" required>
+                        </div>
+                                                <div class="mb-4">
+                            <label for="login-password" class="form-label">Mot de passe</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="login-password" name="password"
+                                       autocomplete="current-password" required>
+                                <button type="button" class="btn toggle-password" data-target="login-password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Se connecter</button>
+                    </form>
+                </div>
+
+                <!-- ONGLET INSCRIPTION -->
+                <div class="tab-pane fade {% if active_tab == 'signup' %}show active{% endif %}" id="signup-pane" role="tabpanel">
+                    <p class="text-secondary small mb-3">
+                        Votre administrateur doit avoir déjà enregistré votre nom et e-mail.
+                    </p>
+                    <form method="POST" action="{{ url_for('auth.signup_employee') }}" autocomplete="on">
+                        <div class="mb-3">
+                            <label for="signup-nom" class="form-label">Nom</label>
+                            <input type="text" class="form-control" id="signup-nom" name="nom"
+                                   autocomplete="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="signup-email" class="form-label">Adresse e-mail</label>
+                            <input type="email" class="form-control" id="signup-email" name="email"
+                                   autocomplete="username" required>
+                        </div>
+                                                <div class="mb-3">
+                            <label for="signup-password" class="form-label">Créer un mot de passe</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="signup-password" name="password"
+                                       autocomplete="new-password" required minlength="6">
+                                <button type="button" class="btn toggle-password" data-target="signup-password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label for="signup-confirm" class="form-label">Confirmer le mot de passe</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="signup-confirm" name="confirm_password"
+                                       autocomplete="new-password" required minlength="6">
+                                <button type="button" class="btn toggle-password" data-target="signup-confirm">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Créer mon compte</button>
+                    </form>
+                </div>
+
+            </div>
+
+            <div class="text-center mt-4 d-flex justify-content-between">
+                <a href="{{ url_for('landing') }}" class="text-secondary small text-decoration-none">
+                    ← Accueil
+                </a>
+                <a href="{{ url_for('auth.login_admin') }}" class="text-secondary small text-decoration-none">
+                    Connexion Admin
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

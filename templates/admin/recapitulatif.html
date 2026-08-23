@@ -1,0 +1,65 @@
+{% extends "admin/layout.html" %}
+{% set active = "recap" %}
+{% block title %}Récapitulatif{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h1 class="h4 fw-semibold mb-0">Récapitulatif</h1>
+
+    <div class="btn-group btn-group-sm" role="group">
+        <a href="{{ url_for('admin.recapitulatif', period='semaine') }}"
+           class="btn {% if period_type == 'semaine' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+            Semaine
+        </a>
+        <a href="{{ url_for('admin.recapitulatif', period='mois') }}"
+           class="btn {% if period_type == 'mois' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+            Mois
+        </a>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{{ url_for('admin.recapitulatif', period=period_type, ref=prev_ref) }}"
+       class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-chevron-left"></i>
+    </a>
+    <span class="fw-semibold">{{ label }}</span>
+    <a href="{{ url_for('admin.recapitulatif', period=period_type, ref=next_ref) }}"
+       class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-chevron-right"></i>
+    </a>
+</div>
+
+<div class="card p-3">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nom</th><th>Statut compte</th><th>Jours présents</th>
+                    <th>Jours absents</th><th>Retards</th><th>Total heures</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in lignes %}
+                <tr>
+                    <td>{{ l.nom }}</td>
+                    <td>
+                        {% if l.actif %}<span class="badge text-bg-success">Actif</span>
+                        {% else %}<span class="badge text-bg-secondary">Désactivé</span>{% endif %}
+                    </td>
+                    <td>{{ l.jours_presents }}</td>
+                    <td>{{ l.jours_absents }}</td>
+                    <td>
+                        {% if l.retards > 0 %}<span class="badge text-bg-danger">{{ l.retards }}</span>
+                        {% else %}<span class="badge text-bg-success">0</span>{% endif %}
+                    </td>
+                    <td>{{ l.total_heures }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-secondary py-4">Aucun employé.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

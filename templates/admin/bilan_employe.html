@@ -1,0 +1,99 @@
+{% extends "admin/layout.html" %}
+{% set active = "bilan" %}
+{% block title %}Bilan Employé{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h1 class="h4 fw-semibold mb-0">Bilan employé</h1>
+    <a href="{{ url_for('admin.employees_list') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Retour aux employés
+    </a>
+</div>
+
+<div class="card p-4 mb-4">
+    <form method="GET" action="{{ url_for('admin.bilan_employe') }}" class="row g-3 align-items-end">
+        <div class="col-12 col-md-4">
+            <label class="form-label small">Employé</label>
+            <select name="employe_id" class="form-select" required>
+                <option value="">-- Choisir un employé --</option>
+                {% for e in employes %}
+                <option value="{{ e.id }}" {% if employe and employe.id == e.id %}selected{% endif %}>{{ e.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+            <label class="form-label small">Période</label>
+            <select name="period" id="period-select" class="form-select" onchange="toggleCustomDates()">
+                <option value="semaine" {% if period_type == 'semaine' %}selected{% endif %}>Cette semaine</option>
+                <option value="mois" {% if period_type == 'mois' %}selected{% endif %}>Ce mois</option>
+                <option value="personnalise" {% if period_type == 'personnalise' %}selected{% endif %}>Personnalisé</option>
+            </select>
+        </div>
+
+        <div class="col-6 col-md-2 custom-date-field" style="{% if period_type != 'personnalise' %}display:none;{% endif %}">
+            <label class="form-label small">Du</label>
+            <input type="date" name="date_debut" value="{{ date_debut }}" class="form-control">
+        </div>
+        <div class="col-6 col-md-2 custom-date-field" style="{% if period_type != 'personnalise' %}display:none;{% endif %}">
+            <label class="form-label small">Au</label>
+            <input type="date" name="date_fin" value="{{ date_fin }}" class="form-control">
+        </div>
+
+        <div class="col-12 col-md-1">
+            <button type="submit" class="btn btn-primary w-100">OK</button>
+        </div>
+    </form>
+</div>
+
+{% if employe and stats %}
+<p class="text-secondary small mb-3">{{ employe.nom }} — {{ label }}</p>
+
+<div class="row g-3">
+    <div class="col-6 col-lg-3">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Jours présents</p>
+            <p class="h3 fw-bold mb-0 text-success">{{ stats.jours_presents }}</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Jours absents</p>
+            <p class="h3 fw-bold mb-0 text-danger">{{ stats.jours_absents }}</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Retards</p>
+            <p class="h3 fw-bold mb-0 text-warning">{{ stats.retards }}</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Total heures travaillées</p>
+            <p class="h3 fw-bold mb-0 text-primary">{{ stats.total_heures }}</p>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Moyenne d'heures par jour présent</p>
+            <p class="h3 fw-bold mb-0">{{ stats.moyenne_heures_jour }}</p>
+        </div>
+    </div>
+</div>
+
+{% elif employe_id %}
+<p class="text-secondary text-center py-5">Aucune donnée pour cette période.</p>
+{% else %}
+<p class="text-secondary text-center py-5">Sélectionnez un employé pour voir son bilan.</p>
+{% endif %}
+
+<script>
+function toggleCustomDates() {
+    const isCustom = document.getElementById("period-select").value === "personnalise";
+    document.querySelectorAll(".custom-date-field").forEach(function (el) {
+        el.style.display = isCustom ? "" : "none";
+    });
+}
+</script>
+{% endblock %}

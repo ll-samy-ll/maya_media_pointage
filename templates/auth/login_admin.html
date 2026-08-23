@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Connexion Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center min-vh-100 p-3">
+    <div class="card shadow-lg auth-card w-100" style="max-width: 380px;">
+        <div class="card-body p-4 p-md-5">
+            <h1 class="h4 fw-semibold mb-4">Accès Administrateur</h1>
+
+            <form method="POST" action="{{ url_for('auth.login_admin') }}">
+                                <div class="mb-4">
+                    <label for="password" class="form-label">Mot de passe</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="password" name="password"
+                               autocomplete="current-password" required autofocus>
+                        <button type="button" class="btn toggle-password" data-target="password">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Se connecter</button>
+            </form>
+
+                        <div class="text-center mt-4 d-flex justify-content-between">
+                <a href="{{ url_for('landing') }}" class="text-secondary small text-decoration-none">
+                    ← Accueil
+                </a>
+                <a href="{{ url_for('auth.login_employee') }}" class="text-secondary small text-decoration-none">
+                    Connexion employé
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

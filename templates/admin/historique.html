@@ -1,0 +1,89 @@
+{% extends "admin/layout.html" %}
+{% set active = "historique" %}
+{% block title %}Historique{% endblock %}
+
+{% block admin_content %}
+<h1 class="h4 fw-semibold mb-4">Historique des présences</h1>
+
+<div class="card p-3 mb-4">
+    <form method="GET" action="{{ url_for('admin.historique') }}" class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+            <label class="form-label small">Employé</label>
+            <select name="employe_id" class="form-select form-select-sm">
+                <option value="">Tous les employés</option>
+                {% for e in employes %}
+                <option value="{{ e.id }}" {% if employe_id == e.id %}selected{% endif %}>{{ e.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small">Du</label>
+            <input type="date" name="date_debut" id="date_debut" value="{{ date_debut }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label small">Au</label>
+            <input type="date" name="date_fin" id="date_fin" value="{{ date_fin }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filtrer</button>
+            <a href="{{ url_for('admin.historique') }}" class="btn btn-outline-secondary btn-sm">Réinitialiser</a>
+        </div>
+    </form>
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="button" class="btn btn-sm btn-outline-light" onclick="setThisWeek()">Cette semaine</button>
+        <button type="button" class="btn btn-sm btn-outline-light" onclick="setThisMonth()">Ce mois</button>
+    </div>
+</div>
+
+<div class="card p-3">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead>
+                <tr><th>Date</th><th>Nom</th><th>Arrivée</th><th>Départ</th><th>Absence</th><th>Motif</th></tr>
+            </thead>
+            <tbody>
+                {% for l in lignes %}
+                <tr>
+                    <td>{{ l.date.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ l.nom }}</td>
+                    <td>{{ l.arrivee }}</td>
+                    <td>{{ l.depart }}</td>
+                    <td>
+                        {% if l.absence %}<span class="badge text-bg-danger">Oui</span>
+                        {% else %}<span class="badge text-bg-success">Non</span>{% endif %}
+                    </td>
+                    <td>{{ l.motif }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-secondary py-4">Aucun résultat pour ces filtres.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function pad(n) { return n.toString().padStart(2, "0"); }
+function toISO(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+function setThisWeek() {
+    const today = new Date();
+    const day = (today.getDay() + 6) % 7; // Lundi = 0
+    const lundi = new Date(today);
+    lundi.setDate(today.getDate() - day);
+    const dimanche = new Date(lundi);
+    dimanche.setDate(lundi.getDate() + 6);
+    document.getElementById("date_debut").value = toISO(lundi);
+    document.getElementById("date_fin").value = toISO(dimanche);
+}
+
+function setThisMonth() {
+    const today = new Date();
+    const premier = new Date(today.getFullYear(), today.getMonth(), 1);
+    const dernier = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    document.getElementById("date_debut").value = toISO(premier);
+    document.getElementById("date_fin").value = toISO(dernier);
+}
+</script>
+{% endblock %}

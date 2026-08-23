@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex" style="min-height:100vh;">
+
+    <nav class="sidebar d-none d-md-flex flex-column p-3">
+        <div class="mb-4 fw-bold fs-6 text-uppercase">{{ company_name }}</div>
+
+        <a href="{{ url_for('admin.dashboard') }}" class="sidebar-link {% if active=='dashboard' %}active{% endif %}">
+            <i class="bi bi-grid-1x2"></i> Tableau de bord
+        </a>
+
+                <div class="sidebar-group-title">Employés</div>
+        <a href="{{ url_for('admin.employees_list') }}" class="sidebar-link {% if active=='employees' %}active{% endif %}">
+            <i class="bi bi-people"></i> Tous les employés
+        </a>
+        <a href="{{ url_for('admin.bilan_employe') }}" class="sidebar-link {% if active=='bilan' %}active{% endif %}">
+            <i class="bi bi-person-lines-fill"></i> Résumé employé
+        </a>
+
+                <div class="sidebar-group-title">Présences</div>
+        <a href="{{ url_for('admin.suivi_pointages') }}" class="sidebar-link {% if active=='suivi' %}active{% endif %}">
+            <i class="bi bi-list-check"></i> Suivi des pointages
+        </a>
+        <a href="{{ url_for('admin.recapitulatif') }}" class="sidebar-link {% if active=='recap' %}active{% endif %}">
+            <i class="bi bi-file-earmark-bar-graph"></i> Récapitulatif
+        </a>
+        <a href="{{ url_for('admin.historique') }}" class="sidebar-link {% if active=='historique' %}active{% endif %}">
+            <i class="bi bi-clock-history"></i> Historique
+        </a>
+        <a href="{{ url_for('admin.parametres') }}" class="sidebar-link {% if active=='parametres' %}active{% endif %}">
+            <i class="bi bi-gear"></i> Paramètres
+        </a>
+    </nav>
+
+    <div class="flex-grow-1">
+        <header class="d-flex justify-content-between align-items-center p-3 border-bottom app-header gap-3">
+            <form method="GET" action="{{ url_for('admin.employees_list') }}" class="flex-grow-1" style="max-width:400px;">
+                <input type="search" name="q" class="form-control form-control-sm" placeholder="Rechercher des employés...">
+            </form>
+            <div class="d-flex align-items-center gap-3">
+                <span class="small text-secondary">Administrateur</span>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            </div>
+        </header>
+
+        <main class="p-3 p-md-4">
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}

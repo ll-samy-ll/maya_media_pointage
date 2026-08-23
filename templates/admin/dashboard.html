@@ -1,0 +1,91 @@
+{% extends "admin/layout.html" %}
+{% set active = "dashboard" %}
+{% block title %}Tableau de bord{% endblock %}
+
+{% block admin_content %}
+<h1 class="h4 fw-semibold mb-4">Tableau de bord</h1>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Total employés</p>
+            <p class="h3 fw-bold mb-0">{{ total_employes }}</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Présents aujourd'hui</p>
+            <p class="h3 fw-bold mb-0 text-success">{{ presents_today }}</p>
+        </div>
+    </div>
+        <div class="col-6 col-lg-3">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Absents aujourd'hui</p>
+            <p class="h3 fw-bold mb-2 text-danger">{{ absents_today }}</p>
+
+            {% if absences_details %}
+            <div class="absences-list">
+                {% for a in absences_details %}
+                <div class="absence-item">
+                    <span class="fw-semibold">{{ a.nom }}</span>
+                    <span class="text-secondary">— {{ a.motif }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Retards aujourd'hui</p>
+            <p class="h3 fw-bold mb-0 text-warning">{{ retards_today }}</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-6">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Pointages du jour</p>
+            <p class="h3 fw-bold mb-0 text-primary">{{ pointages_count }}</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-6">
+        <div class="card p-3 stat-card">
+            <p class="text-secondary small mb-1">Total heures travaillées aujourd'hui</p>
+            <p class="h3 fw-bold mb-0 text-primary">{{ total_heures_today }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="card p-3">
+    <h2 class="h6 fw-semibold mb-3">Présences du jour</h2>
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nom</th><th>Arrivée</th><th>Départ</th><th>Statut</th><th>Retard</th><th>Temps travaillé</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in lignes %}
+                <tr>
+                    <td>{{ l.nom }}</td>
+                    <td>{{ l.arrivee }}</td>
+                    <td>{{ l.depart }}</td>
+                    <td>
+                        {% if l.statut == 'Présent' %}<span class="badge text-bg-success">Présent</span>
+                        {% elif l.statut == 'En cours' %}<span class="badge text-bg-primary">En cours</span>
+                        {% else %}<span class="badge text-bg-secondary">Absent</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if l.retard == 'Oui' %}<span class="badge text-bg-danger">Oui</span>
+                        {% else %}<span class="badge text-bg-success">Non</span>{% endif %}
+                    </td>
+                    <td>{{ l.temps }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-secondary py-4">Aucun employé actif.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "admin/layout.html" %}
+{% set active = "suivi" %}
+{% block title %}Suivi des pointages{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <div>
+        <h1 class="h4 fw-semibold mb-1">Suivi des pointages</h1>
+        <p class="text-secondary small mb-0">Vue en temps réel — {{ today.strftime('%d/%m/%Y') }}</p>
+    </div>
+</div>
+
+<div class="card p-3">
+    <form method="GET" action="{{ url_for('admin.suivi_pointages') }}" class="mb-3" style="max-width:320px;">
+        <input type="search" name="q" value="{{ search }}" class="form-control form-control-sm"
+               placeholder="Filtrer par nom...">
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nom</th><th>Arrivée</th><th>Départ</th><th>Statut</th><th>Retard</th><th>Temps travaillé</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in lignes %}
+                <tr>
+                    <td>{{ l.nom }}</td>
+                    <td>{{ l.arrivee }}</td>
+                    <td>{{ l.depart }}</td>
+                    <td>
+                        {% if l.statut == 'Présent' %}<span class="badge text-bg-success">Présent</span>
+                        {% elif l.statut == 'En cours' %}<span class="badge text-bg-primary">En cours</span>
+                        {% else %}<span class="badge text-bg-secondary">Absent</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if l.retard == 'Oui' %}<span class="badge text-bg-danger">Oui</span>
+                        {% else %}<span class="badge text-bg-success">Non</span>{% endif %}
+                    </td>
+                    <td>{{ l.temps }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-secondary py-4">Aucun employé trouvé.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

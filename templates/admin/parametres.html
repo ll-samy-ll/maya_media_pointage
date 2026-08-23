@@ -1,0 +1,68 @@
+{% extends "admin/layout.html" %}
+{% set active = "parametres" %}
+{% block title %}Paramètres{% endblock %}
+
+{% block admin_content %}
+<h1 class="h4 fw-semibold mb-4">Paramètres</h1>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-6">
+        <div class="card p-4 h-100">
+            <h2 class="h6 fw-semibold mb-1">Heure de retard</h2>
+            <p class="text-secondary small mb-4">
+                Heure d'arrivée attendue. Tout pointage effectué après cette heure sera marqué comme retard.
+            </p>
+
+            <form method="POST" action="{{ url_for('admin.parametres') }}">
+                <input type="hidden" name="form_type" value="heure_retard">
+                <div class="mb-4">
+                    <label for="heure_arrivee_prevue" class="form-label">Heure d'arrivée prévue</label>
+                    <input type="time" class="form-control" id="heure_arrivee_prevue"
+                           name="heure_arrivee_prevue"
+                           value="{{ admin.heure_arrivee_prevue.strftime('%H:%M') }}" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card p-4 h-100">
+            <h2 class="h6 fw-semibold mb-1">Mot de passe administrateur</h2>
+            <p class="text-secondary small mb-4">Modifiez le mot de passe utilisé pour accéder à cet espace.</p>
+
+                        <form method="POST" action="{{ url_for('admin.parametres') }}">
+                <input type="hidden" name="form_type" value="changer_password">
+                <div class="mb-3">
+                    <label for="ancien_password" class="form-label">Mot de passe actuel</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="ancien_password" name="ancien_password" required>
+                        <button type="button" class="btn toggle-password" data-target="ancien_password">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="nouveau_password" class="form-label">Nouveau mot de passe</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="nouveau_password" name="nouveau_password" required minlength="6">
+                        <button type="button" class="btn toggle-password" data-target="nouveau_password">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="confirmation_password" class="form-label">Confirmer le nouveau mot de passe</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="confirmation_password" name="confirmation_password" required minlength="6">
+                        <button type="button" class="btn toggle-password" data-target="confirmation_password">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Changer le mot de passe</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

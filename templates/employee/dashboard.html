@@ -1,0 +1,156 @@
+{% extends "employee/layout.html" %}
+{% set active = "dashboard" %}
+{% block title %}Tableau de bord{% endblock %}
+
+{% block employee_content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-semibold mb-1">Bienvenu 👋, {{ current_user.nom }}.</h1>
+        <p class="text-secondary mb-0">
+            {% if etat == "termine" %}Votre journée de pointage est terminée.
+            {% elif etat == "absent" %}Vous avez déclaré une absence aujourd'hui.
+            {% else %}N'oubliez pas de Pointer !{% endif %}
+        </p>
+    </div>
+
+    {% if etat == "avant_arrivee" %}
+    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#absenceModal">
+        <i class="bi bi-calendar-x me-1"></i> Déclarer une Absence
+    </button>
+    {% endif %}
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-8">
+        <div class="card pointage-card p-4 p-md-5 h-100">
+            <p class="text-secondary text-uppercase small mb-4">Pointage du {{ now_label }}</p>
+
+            {% if etat == "termine" %}
+                <div class="text-center py-5">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <p class="h5 mt-3 mb-1">Merci pour votre pointage.</p>
+                    <p class="text-secondary small mb-4">À demain !</p>
+                    <form method="POST" action="{{ url_for('employee.annuler_depart') }}">
+                        <button type="submit" class="btn btn-link btn-sm text-secondary">
+                            Annuler mon pointage de départ
+                        </button>
+                    </form>
+                </div>
+
+                        {% elif etat == "absent" %}
+                <div class="text-center py-5">
+                    <i class="bi bi-calendar-x text-danger" style="font-size: 3rem;"></i>
+                    <p class="h5 mt-3 mb-1">Absence déclarée aujourd'hui.</p>
+                    {% if absence.motif %}
+                    <p class="text-secondary small mb-4">Motif : {{ absence.motif }}</p>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('employee.annuler_absence') }}">
+                        <button type="submit" class="btn btn-link btn-sm text-secondary">
+                            Annuler ma déclaration d'absence
+                        </button>
+                    </form>
+                </div>
+
+            {% else %}
+                <div class="d-flex justify-content-center gap-4 gap-md-5 flex-wrap py-4">
+                    <div class="text-center">
+                        <form method="POST" action="{{ url_for('employee.pointer_arrivee') }}">
+                            <button type="submit" class="btn-circle btn-circle-green"
+                                {% if etat != "avant_arrivee" %}disabled{% endif %}>
+                                <i class="bi bi-box-arrow-in-right"></i>
+                            </button>
+                        </form>
+                        <p class="fw-semibold small mt-2 mb-0 text-success">POINTER L'ARRIVÉE</p>
+                        <p class="text-secondary" style="font-size:11px;">Commencer votre journée</p>
+
+                        {% if etat == "attente_depart" %}
+                        <form method="POST" action="{{ url_for('employee.annuler_arrivee') }}">
+                            <button type="submit" class="btn btn-link btn-sm text-secondary p-0" style="font-size:11px;">
+                                Annuler mon pointage d'arrivée
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+
+                    <div class="text-center">
+                        <form method="POST" action="{{ url_for('employee.pointer_depart') }}">
+                            <button type="submit" id="btn-depart" class="btn-circle btn-circle-red"
+                                {% if etat == "attente_depart" %}
+                                    disabled data-available-at="{{ depart_disponible_a }}"
+                                {% else %}
+                                    disabled
+                                {% endif %}>
+                                <i class="bi bi-box-arrow-right"></i>
+                            </button>
+                        </form>
+                        <p class="fw-semibold small mt-2 mb-0 text-danger">POINTER LE DÉPART</p>
+                        <p class="text-secondary" id="depart-hint" style="font-size:11px;">
+                            {% if etat == "avant_arrivee" %}Pointez d'abord votre arrivée{% endif %}
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="text-center mt-4 pt-3 border-top border-secondary-subtle">
+                <p class="text-secondary small mb-1">Heure actuelle</p>
+                <p id="horloge-live" class="fw-bold mb-0" style="font-size: 28px; font-variant-numeric: tabular-nums;">
+                    --:--:--
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card p-4 h-100">
+            <h2 class="h6 fw-semibold mb-3">Statut de la présence</h2>
+
+            <span class="badge rounded-pill mb-4
+                {% if etat == 'avant_arrivee' %}text-bg-warning
+                {% elif etat == 'absent' %}text-bg-secondary
+                {% elif pointage and pointage.en_retard %}text-bg-danger
+                {% else %}text-bg-success{% endif %}" style="width: fit-content;">
+                {% if etat == 'avant_arrivee' %}<i class="bi bi-exclamation-triangle"></i> Non Marqué
+                {% elif etat == 'absent' %}Absent
+                {% elif pointage and pointage.en_retard %}En retard
+                {% else %}À l'heure{% endif %}
+            </span>
+
+            <div class="d-flex justify-content-between py-2 border-bottom border-secondary-subtle">
+                <span class="text-secondary small">Heure d'arrivée</span>
+                <span class="fw-semibold small">{{ pointage.heure_arrivee.strftime('%Hh%M') if pointage and pointage.heure_arrivee else '--:--' }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom border-secondary-subtle">
+                <span class="text-secondary small">Heure de départ</span>
+                <span class="fw-semibold small">{{ pointage.heure_depart.strftime('%Hh%M') if pointage and pointage.heure_depart else '--:--' }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-2">
+                <span class="text-secondary small">Heures travaillées</span>
+                <span class="fw-semibold small">{{ heures_travaillees or '--' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="absenceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('employee.declarer_absence') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Déclarer une absence</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="motif" class="form-label">Motif (optionnel)</label>
+                    <textarea class="form-control" id="motif" name="motif" rows="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">Confirmer l'absence</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/employee_dashboard.js') }}"></script>
+{% endblock %}
