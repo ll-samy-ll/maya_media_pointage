@@ -162,3 +162,13 @@ body { font-family: 'Inter', sans-serif; background-color: #0D1117; }
     border-width: 0.15em;
     color: #2563EB;
 }
+
+.sidebar-offcanvas {
+    background-color: #111827;
+    color: #F9FAFB;
+    width: 260px;
+}
+
+.sidebar-offcanvas .offcanvas-header {
+    border-bottom: 1px solid #2A3441;
+}
