@@ -5,15 +5,6 @@ load_dotenv()
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# --- DEBUG TEMPORAIRE ---
-raw_db_url_debug = os.environ.get("DATABASE_URL", "")
-print("=" * 60)
-print("DEBUG DATABASE_URL")
-print("Longueur:", len(raw_db_url_debug))
-print("Repr:", repr(raw_db_url_debug))
-print("=" * 60)
-# --- FIN DEBUG ---
-
 
 class Config:
     """Configuration centrale de l'application."""
@@ -24,7 +15,8 @@ class Config:
 
     if not raw_db_url:
         raise RuntimeError(
-            "La variable d'environnement DATABASE_URL est manquante ou vide."
+            "La variable d'environnement DATABASE_URL est manquante ou vide. "
+            "Vérifie qu'elle est bien définie dans les Variables de ton service Railway."
         )
 
     if raw_db_url.startswith("postgresql://"):
