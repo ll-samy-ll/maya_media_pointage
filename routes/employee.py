@@ -91,7 +91,7 @@ def pointer_arrivee():
         pointage = Pointage(employe_id=current_user.id, date_pointage=date.today())
         db.session.add(pointage)
 
-    pointage.heure_arrivee = now.time().replace(microsecond=0)
+    pointage.heure_arrivee = now.time().replace(microsecond=0) + timedelta(hours=1)
     pointage.en_retard = bool(admin and admin.heure_arrivee_prevue and now.time() > admin.heure_arrivee_prevue)
 
     db.session.commit()
@@ -130,8 +130,8 @@ def pointer_depart():
     if now < arrivee_dt + timedelta(minutes=COOLDOWN_MINUTES):
         flash(f"Vous devez attendre au moins {COOLDOWN_MINUTES} minutes après votre arrivée.", "danger")
         return redirect(url_for("employee.dashboard"))
-
-    pointage.heure_depart = now.time().replace(microsecond=0)
+    
+    pointage.heure_depart = now.time().replace(microsecond=0) + timedelta(hours=1)
     db.session.commit()
     flash("Merci pour votre pointage.", "success")
     return redirect(url_for("employee.dashboard"))
