@@ -1,7 +1,6 @@
-from flask import Flask
+from flask import Flask, render_template
 from config import Config
 from extensions import db, login_manager, migrate
-from flask import Flask, render_template
 from company_config import COMPANY_NAME
 
 
@@ -43,6 +42,7 @@ def create_app():
     @app.route("/health")
     def health():
         return {"status": "ok", "message": "Le serveur Flask fonctionne."}
+
     return app
 
 
