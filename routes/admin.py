@@ -1,6 +1,5 @@
-from datetime import date, timedelta, datetime, time as time_type
+from datetime import date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import current_user
 
 from extensions import db
 from models import Employe, Pointage, Absence
@@ -13,14 +12,6 @@ MOIS_FR = [
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ]
 
-# --- Correctif temporaire de fuseau horaire ---
-TIMEZONE_OFFSET_HOURS = 1
-
-
-def today_local():
-    """Retourne la date du jour corrigée du décalage serveur/entreprise."""
-    return (datetime.now() + timedelta(hours=TIMEZONE_OFFSET_HOURS)).date()
-
 
 # ------------------------------------------------------------------
 # DASHBOARD
@@ -28,7 +19,7 @@ def today_local():
 @admin_bp.route("/dashboard")
 @admin_required
 def dashboard():
-    today = today_local()
+    today = date.today()
 
     total_employes = Employe.query.count()
     actifs = Employe.query.filter_by(actif=True).all()
@@ -51,6 +42,7 @@ def dashboard():
 
     lignes = build_presence_rows(actifs, pointages_today)
 
+    # Liste détaillée des absences déclarées aujourd'hui (nom + motif)
     absences_declarees = Absence.query.filter(
         Absence.date_absence == today, Absence.employe_id.in_(actifs_ids)
     ).all() if actifs_ids else []
@@ -72,8 +64,9 @@ def dashboard():
         absences_details=absences_details,
     )
 
-
 def build_presence_rows(employes, pointages_du_jour):
+    """Construit les lignes du tableau de présence à partir d'une liste
+    d'employés et de leurs pointages du jour."""
     pointage_par_employe = {p.employe_id: p for p in pointages_du_jour}
     lignes = []
 
@@ -180,7 +173,6 @@ def toggle_active(employee_id):
     flash(f"Employé {employe.nom} {statut}.", "success")
     return redirect(url_for("admin.employees_list"))
 
-
 @admin_bp.route("/employees/<int:employee_id>/reset-password", methods=["POST"])
 @admin_required
 def reset_password(employee_id):
@@ -193,12 +185,12 @@ def reset_password(employee_id):
 
 
 # ------------------------------------------------------------------
-# SUIVI DES POINTAGES (temps réel, aujourd'hui)
+# SUIVI DES POINDAGES (temps réel, aujourd'hui)
 # ------------------------------------------------------------------
 @admin_bp.route("/presences/suivi")
 @admin_required
 def suivi_pointages():
-    today = today_local()
+    today = date.today()
     search = request.args.get("q", "").strip()
 
     query = Employe.query.filter_by(actif=True)
@@ -222,85 +214,15 @@ def suivi_pointages():
 
 
 # ------------------------------------------------------------------
-# HISTORIQUE (tous les pointages + absences, filtrable)
-# ------------------------------------------------------------------
-@admin_bp.route("/presences/historique")
-@admin_required
-def historique():
-    employe_id = request.args.get("employe_id", type=int)
-    date_debut_str = request.args.get("date_debut", "")
-    date_fin_str = request.args.get("date_fin", "")
-
-    date_debut = date.fromisoformat(date_debut_str) if date_debut_str else None
-    date_fin = date.fromisoformat(date_fin_str) if date_fin_str else None
-
-    pointage_query = Pointage.query
-    absence_query = Absence.query
-
-    if employe_id:
-        pointage_query = pointage_query.filter(Pointage.employe_id == employe_id)
-        absence_query = absence_query.filter(Absence.employe_id == employe_id)
-
-    if date_debut:
-        pointage_query = pointage_query.filter(Pointage.date_pointage >= date_debut)
-        absence_query = absence_query.filter(Absence.date_absence >= date_debut)
-
-    if date_fin:
-        pointage_query = pointage_query.filter(Pointage.date_pointage <= date_fin)
-        absence_query = absence_query.filter(Absence.date_absence <= date_fin)
-
-    pointages = pointage_query.all()
-    absences = absence_query.all()
-
-    lignes = {}
-    for p in pointages:
-        key = (p.employe_id, p.date_pointage)
-        lignes[key] = {
-            "date": p.date_pointage,
-            "nom": p.employe.nom,
-            "arrivee": p.heure_arrivee.strftime("%Hh%M") if p.heure_arrivee else "--",
-            "depart": p.heure_depart.strftime("%Hh%M") if p.heure_depart else "--",
-            "absence": False,
-            "motif": "--",
-        }
-
-    for a in absences:
-        key = (a.employe_id, a.date_absence)
-        if key in lignes:
-            lignes[key]["absence"] = True
-            lignes[key]["motif"] = a.motif or "--"
-        else:
-            lignes[key] = {
-                "date": a.date_absence,
-                "nom": a.employe.nom,
-                "arrivee": "--",
-                "depart": "--",
-                "absence": True,
-                "motif": a.motif or "--",
-            }
-
-    lignes_triees = sorted(lignes.values(), key=lambda x: x["date"], reverse=True)
-    employes = Employe.query.order_by(Employe.nom.asc()).all()
-
-    return render_template(
-        "admin/historique.html",
-        lignes=lignes_triees,
-        employes=employes,
-        employe_id=employe_id,
-        date_debut=date_debut_str,
-        date_fin=date_fin_str,
-    )
-
-
-# ------------------------------------------------------------------
 # RÉCAPITULATIF (synthèse par employé, semaine ou mois)
 # ------------------------------------------------------------------
 def get_period_bounds(period_type, ref_date):
+    """Retourne (debut, fin, label) pour la période demandée."""
     if period_type == "semaine":
-        debut = ref_date - timedelta(days=ref_date.weekday())
-        fin = debut + timedelta(days=6)
+        debut = ref_date - timedelta(days=ref_date.weekday())  # Lundi
+        fin = debut + timedelta(days=6)  # Dimanche
         label = f"Semaine du {debut.strftime('%d/%m')} au {fin.strftime('%d/%m/%Y')}"
-    else:
+    else:  # mois
         debut = ref_date.replace(day=1)
         if debut.month == 12:
             fin = debut.replace(year=debut.year + 1, month=1, day=1) - timedelta(days=1)
@@ -318,10 +240,12 @@ def recapitulatif():
         period_type = "mois"
 
     ref_str = request.args.get("ref")
-    ref_date = date.fromisoformat(ref_str) if ref_str else today_local()
+    ref_date = date.fromisoformat(ref_str) if ref_str else date.today()
 
     debut, fin, label = get_period_bounds(period_type, ref_date)
 
+    # Navigation précédent/suivant
+    delta = timedelta(days=7) if period_type == "semaine" else timedelta(days=32)
     if period_type == "mois":
         prev_ref = (debut - timedelta(days=1)).replace(day=1)
         next_ref = (fin + timedelta(days=1))
@@ -372,8 +296,125 @@ def recapitulatif():
         next_ref=next_ref.isoformat(),
     )
 
+# ------------------------------------------------------------------
+# HISTORIQUE (tous les pointages + absences, filtrable)
+# ------------------------------------------------------------------
+@admin_bp.route("/presences/historique")
+@admin_required
+def historique():
+    employe_id = request.args.get("employe_id", type=int)
+    date_debut_str = request.args.get("date_debut", "")
+    date_fin_str = request.args.get("date_fin", "")
+
+    date_debut = date.fromisoformat(date_debut_str) if date_debut_str else None
+    date_fin = date.fromisoformat(date_fin_str) if date_fin_str else None
+
+    pointage_query = Pointage.query
+    absence_query = Absence.query
+
+    if employe_id:
+        pointage_query = pointage_query.filter(Pointage.employe_id == employe_id)
+        absence_query = absence_query.filter(Absence.employe_id == employe_id)
+
+    if date_debut:
+        pointage_query = pointage_query.filter(Pointage.date_pointage >= date_debut)
+        absence_query = absence_query.filter(Absence.date_absence >= date_debut)
+
+    if date_fin:
+        pointage_query = pointage_query.filter(Pointage.date_pointage <= date_fin)
+        absence_query = absence_query.filter(Absence.date_absence <= date_fin)
+
+    pointages = pointage_query.all()
+    absences = absence_query.all()
+
+    # Fusionne pointages et absences par (employe, date)
+    lignes = {}
+    for p in pointages:
+        key = (p.employe_id, p.date_pointage)
+        lignes[key] = {
+            "date": p.date_pointage,
+            "nom": p.employe.nom,
+            "arrivee": p.heure_arrivee.strftime("%Hh%M") if p.heure_arrivee else "--",
+            "depart": p.heure_depart.strftime("%Hh%M") if p.heure_depart else "--",
+            "absence": False,
+            "motif": "--",
+        }
+
+    for a in absences:
+        key = (a.employe_id, a.date_absence)
+        if key in lignes:
+            lignes[key]["absence"] = True
+            lignes[key]["motif"] = a.motif or "--"
+        else:
+            lignes[key] = {
+                "date": a.date_absence,
+                "nom": a.employe.nom,
+                "arrivee": "--",
+                "depart": "--",
+                "absence": True,
+                "motif": a.motif or "--",
+            }
+
+    lignes_triees = sorted(lignes.values(), key=lambda x: x["date"], reverse=True)
+    employes = Employe.query.order_by(Employe.nom.asc()).all()
+
+    return render_template(
+        "admin/historique.html",
+        lignes=lignes_triees,
+        employes=employes,
+        employe_id=employe_id,
+        date_debut=date_debut_str,
+        date_fin=date_fin_str,
+    )
 
 # ------------------------------------------------------------------
+# PARAMÈTRES (heure de retard + mot de passe admin)
+# ------------------------------------------------------------------
+from flask_login import current_user
+from datetime import time as time_type
+
+
+@admin_bp.route("/parametres", methods=["GET", "POST"])
+@admin_required
+def parametres():
+    admin = current_user
+
+    if request.method == "POST":
+        form_type = request.form.get("form_type")
+
+        # --- Formulaire 1 : heure de retard ---
+        if form_type == "heure_retard":
+            heure_str = request.form.get("heure_arrivee_prevue", "").strip()
+            try:
+                h, m = map(int, heure_str.split(":"))
+                admin.heure_arrivee_prevue = time_type(h, m)
+                db.session.commit()
+                flash("Heure de retard mise à jour avec succès.", "success")
+            except (ValueError, AttributeError):
+                flash("Format d'heure invalide.", "danger")
+
+        # --- Formulaire 2 : changement de mot de passe ---
+        elif form_type == "changer_password":
+            ancien = request.form.get("ancien_password", "")
+            nouveau = request.form.get("nouveau_password", "")
+            confirmation = request.form.get("confirmation_password", "")
+
+            if not admin.check_password(ancien):
+                flash("Ancien mot de passe incorrect.", "danger")
+            elif len(nouveau) < 6:
+                flash("Le nouveau mot de passe doit contenir au moins 6 caractères.", "danger")
+            elif nouveau != confirmation:
+                flash("Les mots de passe ne correspondent pas.", "danger")
+            else:
+                admin.set_password(nouveau)
+                db.session.commit()
+                flash("Mot de passe modifié avec succès.", "success")
+
+        return redirect(url_for("admin.parametres"))
+
+    return render_template("admin/parametres.html", admin=admin)
+
+    # ------------------------------------------------------------------
 # BILAN EMPLOYÉ (résumé individuel, semaine/mois/personnalisé)
 # ------------------------------------------------------------------
 @admin_bp.route("/bilan")
@@ -400,7 +441,7 @@ def bilan_employe():
         else:
             if period_type not in ("semaine", "mois"):
                 period_type = "mois"
-            debut, fin, label = get_period_bounds(period_type, today_local())
+            debut, fin, label = get_period_bounds(period_type, date.today())
 
         pointages = Pointage.query.filter(
             Pointage.employe_id == employe.id,
@@ -444,45 +485,3 @@ def bilan_employe():
         date_fin=date_fin_str,
         label=label,
     )
-
-
-# ------------------------------------------------------------------
-# PARAMÈTRES (heure de retard + mot de passe admin)
-# ------------------------------------------------------------------
-@admin_bp.route("/parametres", methods=["GET", "POST"])
-@admin_required
-def parametres():
-    admin = current_user
-
-    if request.method == "POST":
-        form_type = request.form.get("form_type")
-
-        if form_type == "heure_retard":
-            heure_str = request.form.get("heure_arrivee_prevue", "").strip()
-            try:
-                h, m = map(int, heure_str.split(":"))
-                admin.heure_arrivee_prevue = time_type(h, m)
-                db.session.commit()
-                flash("Heure de retard mise à jour avec succès.", "success")
-            except (ValueError, AttributeError):
-                flash("Format d'heure invalide.", "danger")
-
-        elif form_type == "changer_password":
-            ancien = request.form.get("ancien_password", "")
-            nouveau = request.form.get("nouveau_password", "")
-            confirmation = request.form.get("confirmation_password", "")
-
-            if not admin.check_password(ancien):
-                flash("Ancien mot de passe incorrect.", "danger")
-            elif len(nouveau) < 6:
-                flash("Le nouveau mot de passe doit contenir au moins 6 caractères.", "danger")
-            elif nouveau != confirmation:
-                flash("Les mots de passe ne correspondent pas.", "danger")
-            else:
-                admin.set_password(nouveau)
-                db.session.commit()
-                flash("Mot de passe modifié avec succès.", "success")
-
-        return redirect(url_for("admin.parametres"))
-
-    return render_template("admin/parametres.html", admin=admin)
