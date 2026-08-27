@@ -129,3 +129,12 @@ def logout():
     logout_user()
     flash("Vous avez été déconnecté.", "info")
     return redirect(url_for("auth.login_employee"))
+
+# ------------------------------------------------------------------
+# API - Suggestions de noms d'employés (autocomplétion)
+# ------------------------------------------------------------------
+@auth_bp.route("/api/employe-noms")
+def api_employe_noms():
+    from flask import jsonify
+    noms = [e.nom for e in Employe.query.filter_by(actif=True).order_by(Employe.nom.asc()).all()]
+    return jsonify(noms)

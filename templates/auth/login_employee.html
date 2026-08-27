@@ -28,10 +28,13 @@
                 <!-- ONGLET CONNEXION -->
                 <div class="tab-pane fade {% if active_tab != 'signup' %}show active{% endif %}" id="login-pane" role="tabpanel">
                     <form method="POST" action="{{ url_for('auth.login_employee') }}" autocomplete="on">
-                        <div class="mb-3">
+                                                <div class="mb-3">
                             <label for="login-nom" class="form-label">Nom</label>
-                            <input type="text" class="form-control" id="login-nom" name="nom"
-                                   autocomplete="name" required>
+                            <div class="autocomplete-wrapper position-relative">
+                                <input type="text" class="form-control autocomplete-nom" id="login-nom" name="nom"
+                                       autocomplete="off" required>
+                                <div class="autocomplete-list"></div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="login-email" class="form-label">Adresse e-mail</label>
@@ -58,10 +61,13 @@
                         Votre administrateur doit avoir déjà enregistré votre nom et e-mail.
                     </p>
                     <form method="POST" action="{{ url_for('auth.signup_employee') }}" autocomplete="on">
-                        <div class="mb-3">
+                                                <div class="mb-3">
                             <label for="signup-nom" class="form-label">Nom</label>
-                            <input type="text" class="form-control" id="signup-nom" name="nom"
-                                   autocomplete="name" required>
+                            <div class="autocomplete-wrapper position-relative">
+                                <input type="text" class="form-control autocomplete-nom" id="signup-nom" name="nom"
+                                       autocomplete="off" required>
+                                <div class="autocomplete-list"></div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="signup-email" class="form-label">Adresse e-mail</label>
