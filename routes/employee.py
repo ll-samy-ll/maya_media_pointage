@@ -10,6 +10,19 @@ employee_bp = Blueprint("employee", __name__, url_prefix="/employee")
 
 COOLDOWN_MINUTES = 10
 
+# --- Correctif temporaire de fuseau horaire ---
+# Railway héberge le serveur en UTC, alors que l'entreprise est sur le
+# fuseau UTC+1 (Afrique de l'Ouest/Centrale). En attendant une meilleure
+# solution (ex: stocker en UTC et convertir à l'affichage avec pytz/zoneinfo
+# selon le fuseau du client), on décale artificiellement l'heure serveur.
+TIMEZONE_OFFSET_HOURS = 1
+
+
+def now_local():
+    """Retourne l'heure actuelle corrigée du décalage serveur/entreprise."""
+    return datetime.now() + timedelta(hours=TIMEZONE_OFFSET_HOURS)
+
+
 JOURS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 MOIS_FR = [
     "janvier", "février", "mars", "avril", "mai", "juin",
@@ -23,13 +36,13 @@ def format_date_fr(d):
 
 def get_today_pointage():
     return Pointage.query.filter_by(
-        employe_id=current_user.id, date_pointage=date.today()
+        employe_id=current_user.id, date_pointage=now_local().date()
     ).first()
 
 
 def get_today_absence():
     return Absence.query.filter_by(
-        employe_id=current_user.id, date_absence=date.today()
+        employe_id=current_user.id, date_absence=now_local().date()
     ).first()
 
 
@@ -39,7 +52,6 @@ def dashboard():
     pointage = get_today_pointage()
     absence = get_today_absence()
 
-    # Détermination de l'état de la journée
     if absence:
         etat = "absent"
     elif not pointage or not pointage.heure_arrivee:
@@ -68,7 +80,7 @@ def dashboard():
         etat=etat,
         heures_travaillees=heures_travaillees,
         depart_disponible_a=depart_disponible_a,
-        now_label=format_date_fr(date.today()),
+        now_label=format_date_fr(now_local().date()),
     )
 
 
@@ -84,11 +96,11 @@ def pointer_arrivee():
         flash("Vous avez déjà pointé votre arrivée aujourd'hui.", "warning")
         return redirect(url_for("employee.dashboard"))
 
-    now = datetime.now()
+    now = now_local()
     admin = Admin.query.first()
 
     if not pointage:
-        pointage = Pointage(employe_id=current_user.id, date_pointage=date.today())
+        pointage = Pointage(employe_id=current_user.id, date_pointage=now.date())
         db.session.add(pointage)
 
     pointage.heure_arrivee = now.time().replace(microsecond=0)
@@ -124,7 +136,7 @@ def pointer_depart():
         flash("Vous avez déjà pointé votre départ aujourd'hui.", "warning")
         return redirect(url_for("employee.dashboard"))
 
-    now = datetime.now()
+    now = now_local()
     arrivee_dt = datetime.combine(pointage.date_pointage, pointage.heure_arrivee)
 
     if now < arrivee_dt + timedelta(minutes=COOLDOWN_MINUTES):
@@ -161,10 +173,21 @@ def declarer_absence():
         return redirect(url_for("employee.dashboard"))
 
     motif = request.form.get("motif", "").strip()
-    absence = Absence(employe_id=current_user.id, date_absence=date.today(), motif=motif)
+    absence = Absence(employe_id=current_user.id, date_absence=now_local().date(), motif=motif)
     db.session.add(absence)
     db.session.commit()
     flash("Absence déclarée avec succès.", "success")
+    return redirect(url_for("employee.dashboard"))
+
+
+@employee_bp.route("/annuler-absence", methods=["POST"])
+@employee_required
+def annuler_absence():
+    absence = get_today_absence()
+    if absence:
+        db.session.delete(absence)
+        db.session.commit()
+        flash("Déclaration d'absence annulée.", "info")
     return redirect(url_for("employee.dashboard"))
 
 
@@ -184,13 +207,3 @@ def retards():
         employe_id=current_user.id, en_retard=True
     ).order_by(Pointage.date_pointage.desc()).all()
     return render_template("employee/retards.html", pointages_retard=pointages_retard)
-
-@employee_bp.route("/annuler-absence", methods=["POST"])
-@employee_required
-def annuler_absence():
-    absence = get_today_absence()
-    if absence:
-        db.session.delete(absence)
-        db.session.commit()
-        flash("Déclaration d'absence annulée.", "info")
-    return redirect(url_for("employee.dashboard"))
