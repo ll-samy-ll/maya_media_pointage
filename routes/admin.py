@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
 from extensions import db
@@ -12,6 +12,18 @@ MOIS_FR = [
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ]
 
+# --- Correctif temporaire de fuseau horaire ---
+# Railway héberge le serveur en UTC, alors que l'entreprise est sur le
+# fuseau UTC+1. En attendant une meilleure solution (stocker en UTC et
+# convertir à l'affichage avec zoneinfo selon le fuseau du client), on
+# décale artificiellement l'heure serveur.
+TIMEZONE_OFFSET_HOURS = 1
+
+
+def today_local():
+    """Retourne la date du jour corrigée du décalage serveur/entreprise."""
+    return (datetime.now() + timedelta(hours=TIMEZONE_OFFSET_HOURS)).date()
+
 
 # ------------------------------------------------------------------
 # DASHBOARD
@@ -19,7 +31,7 @@ MOIS_FR = [
 @admin_bp.route("/dashboard")
 @admin_required
 def dashboard():
-    today = date.today()
+    today = today_local()
 
     total_employes = Employe.query.count()
     actifs = Employe.query.filter_by(actif=True).all()
@@ -63,6 +75,7 @@ def dashboard():
         lignes=lignes,
         absences_details=absences_details,
     )
+
 
 def build_presence_rows(employes, pointages_du_jour):
     """Construit les lignes du tableau de présence à partir d'une liste
@@ -173,6 +186,7 @@ def toggle_active(employee_id):
     flash(f"Employé {employe.nom} {statut}.", "success")
     return redirect(url_for("admin.employees_list"))
 
+
 @admin_bp.route("/employees/<int:employee_id>/reset-password", methods=["POST"])
 @admin_required
 def reset_password(employee_id):
@@ -185,12 +199,12 @@ def reset_password(employee_id):
 
 
 # ------------------------------------------------------------------
-# SUIVI DES POINDAGES (temps réel, aujourd'hui)
+# SUIVI DES POINTAGES (temps réel, aujourd'hui)
 # ------------------------------------------------------------------
 @admin_bp.route("/presences/suivi")
 @admin_required
 def suivi_pointages():
-    today = date.today()
+    today = today_local()
     search = request.args.get("q", "").strip()
 
     query = Employe.query.filter_by(actif=True)
@@ -212,89 +226,6 @@ def suivi_pointages():
         today=today,
     )
 
-
-# ------------------------------------------------------------------
-# RÉCAPITULATIF (synthèse par employé, semaine ou mois)
-# ------------------------------------------------------------------
-def get_period_bounds(period_type, ref_date):
-    """Retourne (debut, fin, label) pour la période demandée."""
-    if period_type == "semaine":
-        debut = ref_date - timedelta(days=ref_date.weekday())  # Lundi
-        fin = debut + timedelta(days=6)  # Dimanche
-        label = f"Semaine du {debut.strftime('%d/%m')} au {fin.strftime('%d/%m/%Y')}"
-    else:  # mois
-        debut = ref_date.replace(day=1)
-        if debut.month == 12:
-            fin = debut.replace(year=debut.year + 1, month=1, day=1) - timedelta(days=1)
-        else:
-            fin = debut.replace(month=debut.month + 1, day=1) - timedelta(days=1)
-        label = f"{MOIS_FR[debut.month - 1]} {debut.year}"
-    return debut, fin, label
-
-
-@admin_bp.route("/presences/recapitulatif")
-@admin_required
-def recapitulatif():
-    period_type = request.args.get("period", "mois")
-    if period_type not in ("semaine", "mois"):
-        period_type = "mois"
-
-    ref_str = request.args.get("ref")
-    ref_date = date.fromisoformat(ref_str) if ref_str else date.today()
-
-    debut, fin, label = get_period_bounds(period_type, ref_date)
-
-    # Navigation précédent/suivant
-    delta = timedelta(days=7) if period_type == "semaine" else timedelta(days=32)
-    if period_type == "mois":
-        prev_ref = (debut - timedelta(days=1)).replace(day=1)
-        next_ref = (fin + timedelta(days=1))
-    else:
-        prev_ref = debut - timedelta(days=7)
-        next_ref = debut + timedelta(days=7)
-
-    employes = Employe.query.order_by(Employe.nom.asc()).all()
-
-    lignes = []
-    for e in employes:
-        pointages = Pointage.query.filter(
-            Pointage.employe_id == e.id,
-            Pointage.date_pointage >= debut,
-            Pointage.date_pointage <= fin,
-        ).all()
-        absences = Absence.query.filter(
-            Absence.employe_id == e.id,
-            Absence.date_absence >= debut,
-            Absence.date_absence <= fin,
-        ).count()
-
-        jours_presents = len([p for p in pointages if p.heure_arrivee])
-        retards = len([p for p in pointages if p.en_retard])
-
-        total_minutes = 0
-        for p in pointages:
-            d = p.calculer_heures_travaillees()
-            if d:
-                total_minutes += int(d.total_seconds() // 60)
-        total_heures = f"{total_minutes // 60}h{total_minutes % 60:02d}"
-
-        lignes.append({
-            "nom": e.nom,
-            "actif": e.actif,
-            "jours_presents": jours_presents,
-            "jours_absents": absences,
-            "retards": retards,
-            "total_heures": total_heures,
-        })
-
-    return render_template(
-        "admin/recapitulatif.html",
-        lignes=lignes,
-        period_type=period_type,
-        label=label,
-        prev_ref=prev_ref.isoformat(),
-        next_ref=next_ref.isoformat(),
-    )
 
 # ------------------------------------------------------------------
 # HISTORIQUE (tous les pointages + absences, filtrable)
@@ -367,56 +298,96 @@ def historique():
         date_fin=date_fin_str,
     )
 
+
 # ------------------------------------------------------------------
-# PARAMÈTRES (heure de retard + mot de passe admin)
+# RÉCAPITULATIF (synthèse par employé, semaine ou mois)
 # ------------------------------------------------------------------
-from flask_login import current_user
-from datetime import time as time_type
+def get_period_bounds(period_type, ref_date):
+    """Retourne (debut, fin, label) pour la période demandée."""
+    if period_type == "semaine":
+        debut = ref_date - timedelta(days=ref_date.weekday())  # Lundi
+        fin = debut + timedelta(days=6)  # Dimanche
+        label = f"Semaine du {debut.strftime('%d/%m')} au {fin.strftime('%d/%m/%Y')}"
+    else:  # mois
+        debut = ref_date.replace(day=1)
+        if debut.month == 12:
+            fin = debut.replace(year=debut.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            fin = debut.replace(month=debut.month + 1, day=1) - timedelta(days=1)
+        label = f"{MOIS_FR[debut.month - 1]} {debut.year}"
+    return debut, fin, label
 
 
-@admin_bp.route("/parametres", methods=["GET", "POST"])
+@admin_bp.route("/presences/recapitulatif")
 @admin_required
-def parametres():
-    admin = current_user
+def recapitulatif():
+    period_type = request.args.get("period", "mois")
+    if period_type not in ("semaine", "mois"):
+        period_type = "mois"
 
-    if request.method == "POST":
-        form_type = request.form.get("form_type")
+    ref_str = request.args.get("ref")
+    ref_date = date.fromisoformat(ref_str) if ref_str else today_local()
 
-        # --- Formulaire 1 : heure de retard ---
-        if form_type == "heure_retard":
-            heure_str = request.form.get("heure_arrivee_prevue", "").strip()
-            try:
-                h, m = map(int, heure_str.split(":"))
-                admin.heure_arrivee_prevue = time_type(h, m)
-                db.session.commit()
-                flash("Heure de retard mise à jour avec succès.", "success")
-            except (ValueError, AttributeError):
-                flash("Format d'heure invalide.", "danger")
+    debut, fin, label = get_period_bounds(period_type, ref_date)
 
-        # --- Formulaire 2 : changement de mot de passe ---
-        elif form_type == "changer_password":
-            ancien = request.form.get("ancien_password", "")
-            nouveau = request.form.get("nouveau_password", "")
-            confirmation = request.form.get("confirmation_password", "")
+    # Navigation précédent/suivant
+    if period_type == "mois":
+        prev_ref = (debut - timedelta(days=1)).replace(day=1)
+        next_ref = (fin + timedelta(days=1))
+    else:
+        prev_ref = debut - timedelta(days=7)
+        next_ref = debut + timedelta(days=7)
 
-            if not admin.check_password(ancien):
-                flash("Ancien mot de passe incorrect.", "danger")
-            elif len(nouveau) < 6:
-                flash("Le nouveau mot de passe doit contenir au moins 6 caractères.", "danger")
-            elif nouveau != confirmation:
-                flash("Les mots de passe ne correspondent pas.", "danger")
-            else:
-                admin.set_password(nouveau)
-                db.session.commit()
-                flash("Mot de passe modifié avec succès.", "success")
+    employes = Employe.query.order_by(Employe.nom.asc()).all()
 
-        return redirect(url_for("admin.parametres"))
+    lignes = []
+    for e in employes:
+        pointages = Pointage.query.filter(
+            Pointage.employe_id == e.id,
+            Pointage.date_pointage >= debut,
+            Pointage.date_pointage <= fin,
+        ).all()
+        absences = Absence.query.filter(
+            Absence.employe_id == e.id,
+            Absence.date_absence >= debut,
+            Absence.date_absence <= fin,
+        ).count()
 
-    return render_template("admin/parametres.html", admin=admin)
+        jours_presents = len([p for p in pointages if p.heure_arrivee])
+        retards = len([p for p in pointages if p.en_retard])
 
-    # ------------------------------------------------------------------
+        total_minutes = 0
+        for p in pointages:
+            d = p.calculer_heures_travaillees()
+            if d:
+                total_minutes += int(d.total_seconds() // 60)
+        total_heures = f"{total_minutes // 60}h{total_minutes % 60:02d}"
+
+        lignes.append({
+            "nom": e.nom,
+            "actif": e.actif,
+            "jours_presents": jours_presents,
+            "jours_absents": absences,
+            "retards": retards,
+            "total_heures": total_heures,
+        })
+
+    return render_template(
+        "admin/recapitulatif.html",
+        lignes=lignes,
+        period_type=period_type,
+        label=label,
+        prev_ref=prev_ref.isoformat(),
+        next_ref=next_ref.isoformat(),
+    )
+
+
+# ------------------------------------------------------------------
 # BILAN EMPLOYÉ (résumé individuel, semaine/mois/personnalisé)
 # ------------------------------------------------------------------
+from flask_login import current_user
+
+
 @admin_bp.route("/bilan")
 @admin_required
 def bilan_employe():
@@ -441,7 +412,7 @@ def bilan_employe():
         else:
             if period_type not in ("semaine", "mois"):
                 period_type = "mois"
-            debut, fin, label = get_period_bounds(period_type, date.today())
+            debut, fin, label = get_period_bounds(period_type, today_local())
 
         pointages = Pointage.query.filter(
             Pointage.employe_id == employe.id,
@@ -485,3 +456,50 @@ def bilan_employe():
         date_fin=date_fin_str,
         label=label,
     )
+
+
+# ------------------------------------------------------------------
+# PARAMÈTRES (heure de retard + mot de passe admin)
+# ------------------------------------------------------------------
+from datetime import time as time_type
+
+
+@admin_bp.route("/parametres", methods=["GET", "POST"])
+@admin_required
+def parametres():
+    admin = current_user
+
+    if request.method == "POST":
+        form_type = request.form.get("form_type")
+
+        # --- Formulaire 1 : heure de retard ---
+        if form_type == "heure_retard":
+            heure_str = request.form.get("heure_arrivee_prevue", "").strip()
+            try:
+                h, m = map(int, heure_str.split(":"))
+                admin.heure_arrivee_prevue = time_type(h, m)
+                db.session.commit()
+                flash("Heure de retard mise à jour avec succès.", "success")
+            except (ValueError, AttributeError):
+                flash("Format d'heure invalide.", "danger")
+
+        # --- Formulaire 2 : changement de mot de passe ---
+        elif form_type == "changer_password":
+            ancien = request.form.get("ancien_password", "")
+            nouveau = request.form.get("nouveau_password", "")
+            confirmation = request.form.get("confirmation_password", "")
+
+            if not admin.check_password(ancien):
+                flash("Ancien mot de passe incorrect.", "danger")
+            elif len(nouveau) < 6:
+                flash("Le nouveau mot de passe doit contenir au moins 6 caractères.", "danger")
+            elif nouveau != confirmation:
+                flash("Les mots de passe ne correspondent pas.", "danger")
+            else:
+                admin.set_password(nouveau)
+                db.session.commit()
+                flash("Mot de passe modifié avec succès.", "success")
+
+        return redirect(url_for("admin.parametres"))
+
+    return render_template("admin/parametres.html", admin=admin)
